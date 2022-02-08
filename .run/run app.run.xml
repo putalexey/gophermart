@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="run app" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="gophermart" />
+    <working_directory value="$PROJECT_DIR$" />
+    <envs>
+      <env name="ACCRUAL_SYSTEM_ADDRESS" value="localhost:8001" />
+      <env name="DATABASE_URI" value="postgresql://postgres:postgres@localhost/praktikum?sslmode=disable" />
+      <env name="RUN_ADDRESS" value="localhost:8000" />
+    </envs>
+    <kind value="PACKAGE" />
+    <package value="github.com/putalexey/gophermart/cmd/gophermart" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/gophermart/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
