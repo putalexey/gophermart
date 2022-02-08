@@ -5,7 +5,10 @@ import (
 	"flag"
 	"github.com/caarlos0/env/v6"
 	"log"
+	"regexp"
 )
+
+var addressPattern = `^.+?:\d{1,5}$`
 
 type EnvConfig struct {
 	Address              string `env:"RUN_ADDRESS"`
@@ -28,7 +31,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 }
 
 func checkConfig(cfg EnvConfig) error {
@@ -41,6 +43,15 @@ func checkConfig(cfg EnvConfig) error {
 	if cfg.AccrualSystemAddress == "" {
 		return errors.New("не указан адрес системы расчёта начислений")
 	}
+
+	if matched, _ := regexp.Match(addressPattern, []byte(cfg.Address)); !matched {
+		return errors.New("неверный формат адреса запуска сервиса (host:port)")
+	}
+
+	if matched, _ := regexp.Match(addressPattern, []byte(cfg.AccrualSystemAddress)); !matched {
+		return errors.New("неверный формат адреса системы расчёта начислений (host:port)")
+	}
+
 	return nil
 }
 
