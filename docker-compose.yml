@@ -24,6 +24,8 @@ services:
       DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
     volumes:
       - ./:/home/accrual
+    depends_on:
+      - postgres
     ports:
       - "8001:8001"
   postgres:
