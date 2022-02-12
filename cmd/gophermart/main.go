@@ -54,7 +54,14 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	app, err := loyaltyApi.New(logger, cfg.DatabaseDSN, cfg.Address, cfg.AccrualSystemAddress, cfg.MigrationsDir)
+	loyaltyApiConfig := loyaltyApi.LoyaltyApiConfig{
+		DatabaseDSN:    cfg.DatabaseDSN,
+		Address:        cfg.Address,
+		AccrualAddress: cfg.AccrualSystemAddress,
+		MigrationsDir:  cfg.MigrationsDir,
+		SecretKey:      "some secret key",
+	}
+	app, err := loyaltyApi.New(logger, loyaltyApiConfig)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -81,8 +88,8 @@ func main() {
 }
 
 func makeLogger() *zap.SugaredLogger {
-	baseLogger, _ := zap.NewProduction()
-	//baseLogger, _ := zap.NewDevelopment()
+	//baseLogger, _ := zap.NewProduction()
+	baseLogger, _ := zap.NewDevelopment()
 	return baseLogger.Sugar()
 }
 

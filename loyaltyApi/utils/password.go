@@ -1,11 +1,14 @@
 package utils
 
-import "crypto/sha256"
+import (
+	"crypto/sha256"
+	"fmt"
+)
 
 func PasswordHash(password string) string {
 	sha := sha256.New()
-	result := sha.Sum([]byte(password))
-	return string(result)
+	sha.Write([]byte(password))
+	return fmt.Sprintf("%x", sha.Sum(nil))
 }
 
 func PasswordCheck(password, passwordHash string) bool {

@@ -8,6 +8,10 @@ import (
 	"github.com/putalexey/gophermart/loyaltyApi/models"
 )
 
+var (
+	ErrUserNotFound = errors.New("user not found")
+)
+
 type Repositorier interface {
 	UserRepository
 	OrderRepository
@@ -41,10 +45,17 @@ func New(db *sql.DB, migrationsDir string) (*Repo, error) {
 	return repo, nil
 }
 
-func (r *Repo) GetUser(ctx context.Context, ID string) (*models.User, error) {
-	return nil, errors.New("User not found")
+func (r *Repo) GetUser(ctx context.Context, id string) (*models.User, error) {
+	return nil, ErrUserNotFound
 }
 
-func (r *Repo) FindUserByLogin(ctx context.Context, Login string) (*models.User, error) {
-	return nil, nil
+func (r *Repo) FindUserByLogin(ctx context.Context, login string) (*models.User, error) {
+	if login == "test" {
+		return &models.User{
+			UUID:     "asdasdasd-as-da-sdasd",
+			Login:    "test",
+			Password: "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92", // 123456
+		}, nil
+	}
+	return nil, ErrUserNotFound
 }

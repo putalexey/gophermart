@@ -9,17 +9,25 @@ import (
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/stdlib"
+	"github.com/putalexey/gophermart/loyaltyApi/handlers"
 	"github.com/putalexey/gophermart/loyaltyApi/models"
 	"github.com/putalexey/gophermart/loyaltyApi/repository"
-	"github.com/putalexey/gophermart/loyaltyApi/requests"
-	"github.com/putalexey/gophermart/loyaltyApi/utils"
+	"github.com/putalexey/gophermart/loyaltyApi/responses"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
 )
 
 func notImplementedFunc(c *gin.Context) {
-	c.String(http.StatusNotImplemented, "Not implemented")
+	responses.JSONError(c, http.StatusNotImplemented, errors.New("not implemented"))
+}
+
+type LoyaltyApiConfig struct {
+	DatabaseDSN    string
+	Address        string
+	AccrualAddress string
+	MigrationsDir  string
+	SecretKey      string
 }
 
 type LoyaltyApi struct {
@@ -28,25 +36,27 @@ type LoyaltyApi struct {
 	Address        string
 	AccrualAddress string
 	MigrationsDir  string
+	secretKey      string
 	srv            *http.Server
 	router         *gin.Engine
 	db             *sql.DB
 	repository     *repository.Repo
 }
 
-func New(logger *zap.SugaredLogger, databaseDSN, address, accrualAddress, migrationsDir string) (*LoyaltyApi, error) {
+func New(logger *zap.SugaredLogger, config LoyaltyApiConfig) (*LoyaltyApi, error) {
 	app := &LoyaltyApi{
 		Logger:         logger,
-		DatabaseDSN:    databaseDSN,
-		Address:        address,
-		AccrualAddress: accrualAddress,
-		MigrationsDir:  migrationsDir,
+		DatabaseDSN:    config.DatabaseDSN,
+		Address:        config.Address,
+		AccrualAddress: config.AccrualAddress,
+		MigrationsDir:  config.MigrationsDir,
+		secretKey:      config.SecretKey,
 	}
 	err := app.Init()
 	return app, err
 }
 
-func (a LoyaltyApi) connectToDB() error {
+func (a *LoyaltyApi) connectToDB() error {
 	db, err := sql.Open("pgx", a.DatabaseDSN)
 	if err != nil {
 		return err
@@ -58,11 +68,15 @@ func (a LoyaltyApi) connectToDB() error {
 	db.SetConnMaxLifetime(2 * time.Minute)
 
 	a.db = db
+	err = a.db.Ping()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (a LoyaltyApi) Init() error {
+func (a *LoyaltyApi) Init() error {
 	// Connect to DB
 	err := a.connectToDB()
 	if err != nil {
@@ -79,8 +93,8 @@ func (a LoyaltyApi) Init() error {
 		Timeout:       time.Hour,
 		MaxRefresh:    time.Hour,
 		IdentityKey:   models.UserIdentityKey,
-		Key:           []byte("some secret key"),
-		Authenticator: authenticatorFunc(a.repository),
+		Key:           []byte(a.secretKey),
+		Authenticator: handlers.Authenticator(a.repository),
 		TokenLookup:   "header: Authorization, query: token, cookie: jwt",
 	})
 	if err != nil {
@@ -93,8 +107,8 @@ func (a LoyaltyApi) Init() error {
 	a.router.Use(ginzap.RecoveryWithZap(a.Logger.Desugar(), true))
 	a.router.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	a.router.POST("/api/user/register", notImplementedFunc)
-	a.router.POST("/api/user/login", jwtMiddleware.LoginHandler)
+	a.router.POST("/api/user/register", handlers.Register(a.Logger, jwtMiddleware, a.repository))
+	a.router.POST("/api/user/login", handlers.Login(a.Logger, jwtMiddleware, a.repository))
 
 	authGroup := a.router.Group("")
 	authGroup.Use(jwtMiddleware.MiddlewareFunc())
@@ -106,26 +120,8 @@ func (a LoyaltyApi) Init() error {
 
 	return nil
 }
-func authenticatorFunc(repo repository.UserRepository) func(c *gin.Context) (interface{}, error) {
-	return func(c *gin.Context) (interface{}, error) {
-		loginRequest := requests.LoginRequest{}
-		err := c.ShouldBind(&loginRequest)
-		if err != nil {
-			return nil, ginjwt.ErrMissingLoginValues
-		}
-		user, err := repo.FindUserByLogin(c, loginRequest.Login)
-		if err != nil {
-			return nil, err
-		}
-		if utils.PasswordCheck(loginRequest.Password, user.Password) {
-			return nil, ginjwt.ErrMissingLoginValues
-		}
-		return user, nil
-	}
-}
 
-func (a LoyaltyApi) Run(ctx context.Context) {
-
+func (a *LoyaltyApi) Run(ctx context.Context) {
 	a.srv = &http.Server{
 		Addr:     a.Address,
 		Handler:  a.router,
