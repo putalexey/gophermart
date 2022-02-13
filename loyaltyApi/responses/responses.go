@@ -11,9 +11,9 @@ func JSONError(c *gin.Context, code int, err error) {
 	})
 }
 
-func JSON(c *gin.Context, code int, data map[string]interface{}) {
-	if _, ok := data["code"]; !ok {
-		data["code"] = code
-	}
-	c.JSON(code, data)
+func JSON(c *gin.Context, code int, data interface{}) {
+	c.JSON(code, BaseResponse{
+		Code: code,
+		Data: data,
+	})
 }

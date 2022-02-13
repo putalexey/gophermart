@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/jmoiron/sqlx"
 	"github.com/pressly/goose/v3"
 	"github.com/putalexey/gophermart/loyaltyApi/models"
 )
@@ -20,6 +21,8 @@ type Repositorier interface {
 type UserRepository interface {
 	GetUser(ctx context.Context, ID string) (*models.User, error)
 	FindUserByLogin(ctx context.Context, Login string) (*models.User, error)
+	CreateUser(ctx context.Context, user *models.User) (sql.Result, error)
+	SaveUser(ctx context.Context, user *models.User) (sql.Result, error)
 }
 
 type OrderRepository interface {
@@ -28,15 +31,15 @@ type OrderRepository interface {
 }
 
 type Repo struct {
-	DB *sql.DB
+	DB *sqlx.DB
 }
 
-func New(db *sql.DB, migrationsDir string) (*Repo, error) {
+func New(db *sqlx.DB, migrationsDir string) (*Repo, error) {
 	repo := &Repo{DB: db}
 
 	//migrate
 	if migrationsDir != "" {
-		err := goose.Up(db, migrationsDir)
+		err := goose.Up(db.DB, migrationsDir)
 		if err != nil {
 			return nil, err
 		}
@@ -46,16 +49,41 @@ func New(db *sql.DB, migrationsDir string) (*Repo, error) {
 }
 
 func (r *Repo) GetUser(ctx context.Context, id string) (*models.User, error) {
-	return nil, ErrUserNotFound
+	var user = &models.User{}
+	err := r.DB.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE uuid = $1", id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return user, nil
 }
 
 func (r *Repo) FindUserByLogin(ctx context.Context, login string) (*models.User, error) {
-	if login == "test" {
-		return &models.User{
-			UUID:     "asdasdasd-as-da-sdasd",
-			Login:    "test",
-			Password: "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92", // 123456
-		}, nil
+	var user = &models.User{}
+	err := r.DB.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE login like $1", login)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
 	}
-	return nil, ErrUserNotFound
+	return user, nil
+}
+
+func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, error) {
+	return r.DB.NamedExecContext(
+		ctx,
+		"INSERT INTO users (uuid, login, password) VALUES (:uuid, :login, :password)",
+		user,
+	)
+}
+
+func (r *Repo) SaveUser(ctx context.Context, user *models.User) (sql.Result, error) {
+	return r.DB.NamedExecContext(
+		ctx,
+		"UPDATE users SET (login=:login, password=:password) WHERE uuid=:uuid",
+		user,
+	)
 }

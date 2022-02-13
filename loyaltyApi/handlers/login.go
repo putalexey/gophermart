@@ -7,14 +7,8 @@ import (
 	"github.com/putalexey/gophermart/loyaltyApi/repository"
 	"github.com/putalexey/gophermart/loyaltyApi/requests"
 	"github.com/putalexey/gophermart/loyaltyApi/utils"
-	"go.uber.org/zap"
 )
 
-func Login(logger *zap.SugaredLogger, jwtMiddleware *ginjwt.GinJWTMiddleware, repo *repository.Repo) func(ctx *gin.Context) {
-	return func(c *gin.Context) {
-		jwtMiddleware.LoginHandler(c)
-	}
-}
 func Authenticator(repo repository.UserRepository) func(c *gin.Context) (interface{}, error) {
 	return func(c *gin.Context) (interface{}, error) {
 		loginRequest := requests.LoginRequest{}

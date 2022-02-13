@@ -4,16 +4,18 @@ import (
 	"errors"
 	ginjwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/putalexey/gophermart/loyaltyApi/models"
 	"github.com/putalexey/gophermart/loyaltyApi/repository"
 	"github.com/putalexey/gophermart/loyaltyApi/requests"
 	"github.com/putalexey/gophermart/loyaltyApi/responses"
-	"go.uber.org/zap"
+	"github.com/putalexey/gophermart/loyaltyApi/utils"
 	"net/http"
 )
 
 var ErrLoginUsed = errors.New("login used")
 
-func Register(logger *zap.SugaredLogger, middleware *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(c *gin.Context) {
+func Register(mw *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		registerRequest := requests.RegisterRequest{}
 		err2 := c.BindJSON(&registerRequest)
@@ -29,11 +31,44 @@ func Register(logger *zap.SugaredLogger, middleware *ginjwt.GinJWTMiddleware, re
 			return
 		}
 
-		responses.JSONError(c, http.StatusInternalServerError, errors.New("not implemented"))
+		user := &models.User{
+			UUID:     uuid.NewString(),
+			Login:    registerRequest.Login,
+			Password: utils.PasswordHash(registerRequest.Password),
+		}
 
-		//if user == nil || utils.PasswordCheck(loginRequest.Password, user.Password) {
-		//	return nil, ginjwt.ErrFailedAuthentication
-		//}
-		//return user, nil
+		_, err = repo.CreateUser(c, user)
+		if err != nil {
+			responses.JSONError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		tokenString, expire, err := mw.TokenGenerator(user)
+		if err != nil {
+			responses.JSONError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		// set cookie
+		if mw.SendCookie {
+			expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
+			maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+
+			if mw.CookieSameSite != 0 {
+				c.SetSameSite(mw.CookieSameSite)
+			}
+
+			c.SetCookie(
+				mw.CookieName,
+				tokenString,
+				maxage,
+				"/",
+				mw.CookieDomain,
+				mw.SecureCookie,
+				mw.CookieHTTPOnly,
+			)
+		}
+
+		mw.LoginResponse(c, http.StatusOK, tokenString, expire)
 	}
 }

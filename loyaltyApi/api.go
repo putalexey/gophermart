@@ -2,13 +2,13 @@ package loyaltyApi
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	ginjwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-contrib/gzip"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/stdlib"
+	"github.com/jmoiron/sqlx"
 	"github.com/putalexey/gophermart/loyaltyApi/handlers"
 	"github.com/putalexey/gophermart/loyaltyApi/models"
 	"github.com/putalexey/gophermart/loyaltyApi/repository"
@@ -39,7 +39,7 @@ type LoyaltyApi struct {
 	secretKey      string
 	srv            *http.Server
 	router         *gin.Engine
-	db             *sql.DB
+	db             *sqlx.DB
 	repository     *repository.Repo
 }
 
@@ -57,7 +57,8 @@ func New(logger *zap.SugaredLogger, config LoyaltyApiConfig) (*LoyaltyApi, error
 }
 
 func (a *LoyaltyApi) connectToDB() error {
-	db, err := sql.Open("pgx", a.DatabaseDSN)
+	//db, err := sql.Open("pgx", a.DatabaseDSN)
+	db, err := sqlx.Open("pgx", a.DatabaseDSN)
 	if err != nil {
 		return err
 	}
@@ -90,9 +91,31 @@ func (a *LoyaltyApi) Init() error {
 
 	// Create jwtMiddleware
 	jwtMiddleware, err := ginjwt.New(&ginjwt.GinJWTMiddleware{
-		Timeout:       time.Hour,
-		MaxRefresh:    time.Hour,
-		IdentityKey:   models.UserIdentityKey,
+		Timeout:     time.Hour,
+		MaxRefresh:  time.Hour,
+		IdentityKey: models.UserIdentityKey,
+		Authorizator: func(user interface{}, c *gin.Context) bool {
+			if user != nil {
+				return true
+			}
+			return false
+		},
+		PayloadFunc: func(data interface{}) ginjwt.MapClaims {
+			if v, ok := data.(*models.User); ok {
+				return ginjwt.MapClaims{
+					models.UserIdentityKey: v.UUID,
+				}
+			}
+			return ginjwt.MapClaims{}
+		},
+		IdentityHandler: func(c *gin.Context) interface{} {
+			claims := ginjwt.ExtractClaims(c)
+			user, err := a.repository.GetUser(c, claims[models.UserIdentityKey].(string))
+			if err != nil {
+				return nil
+			}
+			return user
+		},
 		Key:           []byte(a.secretKey),
 		Authenticator: handlers.Authenticator(a.repository),
 		TokenLookup:   "header: Authorization, query: token, cookie: jwt",
@@ -107,11 +130,12 @@ func (a *LoyaltyApi) Init() error {
 	a.router.Use(ginzap.RecoveryWithZap(a.Logger.Desugar(), true))
 	a.router.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	a.router.POST("/api/user/register", handlers.Register(a.Logger, jwtMiddleware, a.repository))
-	a.router.POST("/api/user/login", handlers.Login(a.Logger, jwtMiddleware, a.repository))
+	a.router.POST("/api/user/register", handlers.Register(jwtMiddleware, a.repository))
+	a.router.POST("/api/user/login", jwtMiddleware.LoginHandler)
 
 	authGroup := a.router.Group("")
 	authGroup.Use(jwtMiddleware.MiddlewareFunc())
+	authGroup.GET("/api/me", handlers.CurrentUser())
 	authGroup.POST("/api/user/orders", notImplementedFunc)
 	authGroup.GET("/api/user/orders", notImplementedFunc)
 	authGroup.GET("/api/user/balance", notImplementedFunc)
