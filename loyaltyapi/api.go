@@ -94,6 +94,7 @@ func (a *LoyaltyAPI) Init() error {
 		Timeout:     time.Hour,
 		MaxRefresh:  time.Hour,
 		IdentityKey: models.UserIdentityKey,
+		SendCookie:  true,
 		Authorizator: func(user interface{}, c *gin.Context) bool {
 			return user != nil
 		},
