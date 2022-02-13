@@ -4,9 +4,9 @@ import (
 	"errors"
 	ginjwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/putalexey/gophermart/loyaltyApi/repository"
-	"github.com/putalexey/gophermart/loyaltyApi/requests"
-	"github.com/putalexey/gophermart/loyaltyApi/utils"
+	"github.com/putalexey/gophermart/loyaltyapi/repository"
+	"github.com/putalexey/gophermart/loyaltyapi/requests"
+	"github.com/putalexey/gophermart/loyaltyapi/utils"
 )
 
 func Authenticator(repo repository.UserRepository) func(c *gin.Context) (interface{}, error) {

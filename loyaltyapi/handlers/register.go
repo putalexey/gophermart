@@ -5,11 +5,11 @@ import (
 	ginjwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/putalexey/gophermart/loyaltyApi/models"
-	"github.com/putalexey/gophermart/loyaltyApi/repository"
-	"github.com/putalexey/gophermart/loyaltyApi/requests"
-	"github.com/putalexey/gophermart/loyaltyApi/responses"
-	"github.com/putalexey/gophermart/loyaltyApi/utils"
+	"github.com/putalexey/gophermart/loyaltyapi/models"
+	"github.com/putalexey/gophermart/loyaltyapi/repository"
+	"github.com/putalexey/gophermart/loyaltyapi/requests"
+	"github.com/putalexey/gophermart/loyaltyapi/responses"
+	"github.com/putalexey/gophermart/loyaltyapi/utils"
 	"net/http"
 )
 

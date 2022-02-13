@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"github.com/caarlos0/env/v6"
-	"github.com/putalexey/gophermart/loyaltyApi"
+	"github.com/putalexey/gophermart/loyaltyapi"
 	"go.uber.org/zap"
 	"log"
 	"os"
@@ -54,14 +54,14 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	loyaltyApiConfig := loyaltyApi.LoyaltyApiConfig{
+	loyaltyAPIConfig := loyaltyapi.LoyaltyAPIConfig{
 		DatabaseDSN:    cfg.DatabaseDSN,
 		Address:        cfg.Address,
 		AccrualAddress: cfg.AccrualSystemAddress,
 		MigrationsDir:  cfg.MigrationsDir,
 		SecretKey:      "some secret key",
 	}
-	app, err := loyaltyApi.New(logger, loyaltyApiConfig)
+	app, err := loyaltyapi.New(logger, loyaltyAPIConfig)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func main() {
 		wg.Done()
 	}()
 
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

@@ -1,4 +1,4 @@
-package loyaltyApi
+package loyaltyapi
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
-	"github.com/putalexey/gophermart/loyaltyApi/handlers"
-	"github.com/putalexey/gophermart/loyaltyApi/models"
-	"github.com/putalexey/gophermart/loyaltyApi/repository"
-	"github.com/putalexey/gophermart/loyaltyApi/responses"
+	"github.com/putalexey/gophermart/loyaltyapi/handlers"
+	"github.com/putalexey/gophermart/loyaltyapi/models"
+	"github.com/putalexey/gophermart/loyaltyapi/repository"
+	"github.com/putalexey/gophermart/loyaltyapi/responses"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -22,7 +22,7 @@ func notImplementedFunc(c *gin.Context) {
 	responses.JSONError(c, http.StatusNotImplemented, errors.New("not implemented"))
 }
 
-type LoyaltyApiConfig struct {
+type LoyaltyAPIConfig struct {
 	DatabaseDSN    string
 	Address        string
 	AccrualAddress string
@@ -30,7 +30,7 @@ type LoyaltyApiConfig struct {
 	SecretKey      string
 }
 
-type LoyaltyApi struct {
+type LoyaltyAPI struct {
 	Logger         *zap.SugaredLogger
 	DatabaseDSN    string
 	Address        string
@@ -43,8 +43,8 @@ type LoyaltyApi struct {
 	repository     *repository.Repo
 }
 
-func New(logger *zap.SugaredLogger, config LoyaltyApiConfig) (*LoyaltyApi, error) {
-	app := &LoyaltyApi{
+func New(logger *zap.SugaredLogger, config LoyaltyAPIConfig) (*LoyaltyAPI, error) {
+	app := &LoyaltyAPI{
 		Logger:         logger,
 		DatabaseDSN:    config.DatabaseDSN,
 		Address:        config.Address,
@@ -56,7 +56,7 @@ func New(logger *zap.SugaredLogger, config LoyaltyApiConfig) (*LoyaltyApi, error
 	return app, err
 }
 
-func (a *LoyaltyApi) connectToDB() error {
+func (a *LoyaltyAPI) connectToDB() error {
 	//db, err := sql.Open("pgx", a.DatabaseDSN)
 	db, err := sqlx.Open("pgx", a.DatabaseDSN)
 	if err != nil {
@@ -77,7 +77,7 @@ func (a *LoyaltyApi) connectToDB() error {
 	return nil
 }
 
-func (a *LoyaltyApi) Init() error {
+func (a *LoyaltyAPI) Init() error {
 	// Connect to DB
 	err := a.connectToDB()
 	if err != nil {
@@ -95,10 +95,7 @@ func (a *LoyaltyApi) Init() error {
 		MaxRefresh:  time.Hour,
 		IdentityKey: models.UserIdentityKey,
 		Authorizator: func(user interface{}, c *gin.Context) bool {
-			if user != nil {
-				return true
-			}
-			return false
+			return user != nil
 		},
 		PayloadFunc: func(data interface{}) ginjwt.MapClaims {
 			if v, ok := data.(*models.User); ok {
@@ -145,7 +142,7 @@ func (a *LoyaltyApi) Init() error {
 	return nil
 }
 
-func (a *LoyaltyApi) Run(ctx context.Context) {
+func (a *LoyaltyAPI) Run(ctx context.Context) {
 	a.srv = &http.Server{
 		Addr:     a.Address,
 		Handler:  a.router,

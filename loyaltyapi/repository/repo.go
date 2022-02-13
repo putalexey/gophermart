@@ -6,7 +6,7 @@ import (
 	"errors"
 	"github.com/jmoiron/sqlx"
 	"github.com/pressly/goose/v3"
-	"github.com/putalexey/gophermart/loyaltyApi/models"
+	"github.com/putalexey/gophermart/loyaltyapi/models"
 )
 
 var (
