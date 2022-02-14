@@ -4,10 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func JSONError(c *gin.Context, code int, err error) {
+func JSONError(c *gin.Context, code int, err string) {
 	c.JSON(code, ErrorResponse{
 		Code:    code,
-		Message: err.Error(),
+		Message: err,
 	})
 }
 

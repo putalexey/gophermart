@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	ginjwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -13,21 +12,24 @@ import (
 	"net/http"
 )
 
-var ErrLoginUsed = errors.New("login used")
-
 func Register(mw *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		registerRequest := requests.RegisterRequest{}
 		err2 := c.BindJSON(&registerRequest)
 		if err2 != nil {
-			responses.JSONError(c, http.StatusBadRequest, err2)
+			responses.JSONError(c, http.StatusBadRequest, err2.Error())
+			return
+		}
+
+		if registerRequest.Login == "" || registerRequest.Password == "" {
+			responses.JSONError(c, http.StatusBadRequest, "login or password is empty")
 			return
 		}
 
 		_, err := repo.FindUserByLogin(c, registerRequest.Login)
 		if err == nil {
 			// user found
-			responses.JSONError(c, http.StatusConflict, ErrLoginUsed)
+			responses.JSONError(c, http.StatusConflict, "login already in use")
 			return
 		}
 
@@ -39,13 +41,13 @@ func Register(mw *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(
 
 		_, err = repo.CreateUser(c, user)
 		if err != nil {
-			responses.JSONError(c, http.StatusBadRequest, err)
+			responses.JSONError(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		tokenString, expire, err := mw.TokenGenerator(user)
 		if err != nil {
-			responses.JSONError(c, http.StatusInternalServerError, err)
+			responses.JSONError(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 
