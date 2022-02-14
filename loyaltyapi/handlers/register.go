@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	ginjwt "github.com/appleboy/gin-jwt/v2"
+	"database/sql"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
@@ -12,7 +12,7 @@ import (
 	"net/http"
 )
 
-func Register(mw *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(c *gin.Context) {
+func (h *Handlers) Register(repo repository.UserRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		registerRequest := requests.RegisterRequest{}
 		err2 := c.ShouldBindJSON(&registerRequest)
@@ -30,6 +30,12 @@ func Register(mw *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(
 		if err == nil {
 			// user found
 			responses.JSONError(c, http.StatusConflict, "login already in use")
+			return
+		}
+
+		if err != sql.ErrNoRows {
+			h.Logger.Error(err)
+			responses.JSONError(c, http.StatusInternalServerError, "server error")
 			return
 		}
 
@@ -52,32 +58,32 @@ func Register(mw *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(
 			return
 		}
 
-		tokenString, expire, err := mw.TokenGenerator(user)
+		tokenString, expire, err := h.JWT.TokenGenerator(user)
 		if err != nil {
 			responses.JSONError(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		// set cookie
-		if mw.SendCookie {
-			expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-			maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+		if h.JWT.SendCookie {
+			expireCookie := h.JWT.TimeFunc().Add(h.JWT.CookieMaxAge)
+			maxage := int(expireCookie.Unix() - h.JWT.TimeFunc().Unix())
 
-			if mw.CookieSameSite != 0 {
-				c.SetSameSite(mw.CookieSameSite)
+			if h.JWT.CookieSameSite != 0 {
+				c.SetSameSite(h.JWT.CookieSameSite)
 			}
 
 			c.SetCookie(
-				mw.CookieName,
+				h.JWT.CookieName,
 				tokenString,
 				maxage,
 				"/",
-				mw.CookieDomain,
-				mw.SecureCookie,
-				mw.CookieHTTPOnly,
+				h.JWT.CookieDomain,
+				h.JWT.SecureCookie,
+				h.JWT.CookieHTTPOnly,
 			)
 		}
 
-		mw.LoginResponse(c, http.StatusOK, tokenString, expire)
+		h.JWT.LoginResponse(c, http.StatusOK, tokenString, expire)
 	}
 }

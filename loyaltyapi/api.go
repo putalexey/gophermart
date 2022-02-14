@@ -109,13 +109,16 @@ func (a *LoyaltyAPI) Init() error {
 			}
 			return user
 		},
-		Key:           []byte(a.secretKey),
-		Authenticator: handlers.Authenticator(a.repository),
-		TokenLookup:   "header: Authorization, query: token, cookie: jwt",
+		Key:         []byte(a.secretKey),
+		TokenLookup: "header: Authorization, query: token, cookie: jwt",
 	})
 	if err != nil {
 		return err
 	}
+
+	handle := handlers.New(a.Logger, jwtMiddleware)
+
+	jwtMiddleware.Authenticator = handle.Authenticator(a.repository)
 
 	// Create gin router
 	a.router = gin.New()
@@ -123,17 +126,17 @@ func (a *LoyaltyAPI) Init() error {
 	a.router.Use(ginzap.RecoveryWithZap(a.Logger.Desugar(), true))
 	a.router.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	a.router.POST("/api/user/register", handlers.Register(jwtMiddleware, a.repository))
+	a.router.POST("/api/user/register", handle.Register(a.repository))
 	a.router.POST("/api/user/login", jwtMiddleware.LoginHandler)
 
 	authGroup := a.router.Group("")
 	authGroup.Use(jwtMiddleware.MiddlewareFunc())
-	authGroup.GET("/api/me", handlers.CurrentUser())
-	authGroup.POST("/api/user/orders", handlers.NotImplemented)
-	authGroup.GET("/api/user/orders", handlers.NotImplemented)
-	authGroup.GET("/api/user/balance", handlers.NotImplemented)
-	authGroup.POST("/api/user/balance/withdraw", handlers.NotImplemented)
-	authGroup.GET("/api/user/balance/withdrawals", handlers.NotImplemented)
+	authGroup.GET("/api/me", handle.CurrentUser())
+	authGroup.POST("/api/user/orders", handle.NotImplemented)
+	authGroup.GET("/api/user/orders", handle.NotImplemented)
+	authGroup.GET("/api/user/balance", handle.NotImplemented)
+	authGroup.POST("/api/user/balance/withdraw", handle.NotImplemented)
+	authGroup.GET("/api/user/balance/withdrawals", handle.NotImplemented)
 
 	return nil
 }
