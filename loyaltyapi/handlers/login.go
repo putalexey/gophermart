@@ -17,6 +17,10 @@ func Authenticator(repo repository.UserRepository) func(c *gin.Context) (interfa
 			return nil, errors.New("missing Login or Password")
 		}
 
+		if loginRequest.Login == "" || loginRequest.Password == "" {
+			return nil, errors.New("login or password is empty")
+		}
+
 		user, err := repo.FindUserByLogin(c, loginRequest.Login)
 		if err != nil {
 			if errors.Is(err, repository.ErrUserNotFound) {

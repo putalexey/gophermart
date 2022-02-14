@@ -15,7 +15,7 @@ import (
 func Register(mw *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		registerRequest := requests.RegisterRequest{}
-		err2 := c.BindJSON(&registerRequest)
+		err2 := c.ShouldBindJSON(&registerRequest)
 		if err2 != nil {
 			responses.JSONError(c, http.StatusBadRequest, err2.Error())
 			return
