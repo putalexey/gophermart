@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-var notDigitRegexp = regexp.MustCompile("\\D")
+var notDigitRegexp = regexp.MustCompile(`\D`)
 
 func CheckOrderNumber(number string) bool {
 	number = notDigitRegexp.ReplaceAllString(number, "")
