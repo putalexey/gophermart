@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrUserNotFound  = errors.New("user not found")
+	ErrOrderNotFound = errors.New("order not found")
 )
 
 type Repositorier interface {

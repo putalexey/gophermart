@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"database/sql"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
@@ -39,7 +38,7 @@ func (h *Handlers) UserCreateOrder(repo repository.OrderRepository) func(*gin.Co
 		}
 
 		existingOrder, err := repo.GetOrderByNumber(c, number)
-		if err == nil || !errors.Is(err, sql.ErrNoRows) {
+		if err == nil || !errors.Is(err, repository.ErrOrderNotFound) {
 			if err != nil {
 				h.Logger.Error(err)
 				responses.JSONError(c, http.StatusInternalServerError, "server error")
