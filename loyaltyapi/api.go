@@ -12,15 +12,10 @@ import (
 	"github.com/putalexey/gophermart/loyaltyapi/handlers"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
 	"github.com/putalexey/gophermart/loyaltyapi/repository"
-	"github.com/putalexey/gophermart/loyaltyapi/responses"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
 )
-
-func notImplementedFunc(c *gin.Context) {
-	responses.JSONError(c, http.StatusNotImplemented, errors.New("not implemented"))
-}
 
 type LoyaltyAPIConfig struct {
 	DatabaseDSN    string
@@ -134,11 +129,11 @@ func (a *LoyaltyAPI) Init() error {
 	authGroup := a.router.Group("")
 	authGroup.Use(jwtMiddleware.MiddlewareFunc())
 	authGroup.GET("/api/me", handlers.CurrentUser())
-	authGroup.POST("/api/user/orders", notImplementedFunc)
-	authGroup.GET("/api/user/orders", notImplementedFunc)
-	authGroup.GET("/api/user/balance", notImplementedFunc)
-	authGroup.POST("/api/user/balance/withdraw", notImplementedFunc)
-	authGroup.GET("/api/user/balance/withdrawals", notImplementedFunc)
+	authGroup.POST("/api/user/orders", handlers.NotImplemented)
+	authGroup.GET("/api/user/orders", handlers.NotImplemented)
+	authGroup.GET("/api/user/balance", handlers.NotImplemented)
+	authGroup.POST("/api/user/balance/withdraw", handlers.NotImplemented)
+	authGroup.GET("/api/user/balance/withdrawals", handlers.NotImplemented)
 
 	return nil
 }
