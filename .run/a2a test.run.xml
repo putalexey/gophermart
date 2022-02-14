@@ -1,0 +1,19 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="a2a test" type="ShConfigurationType">
+    <option name="SCRIPT_TEXT" value="./gophermarttest -test.v -test.run=^TestGophermart$ -gophermart-binary-path=cmd/gophermart/gophermart -gophermart-host=localhost -gophermart-port=8080 -gophermart-database-uri=&quot;postgresql://postgres:postgres@localhost/praktikum?sslmode=disable&quot; -accrual-binary-path=cmd/accrual/accrual_linux_amd64 -accrual-host=localhost -accrual-port=$(./random unused-port) -accrual-database-uri=&quot;postgresql://postgres:postgres@localhost/praktikum?sslmode=disable&quot;" />
+    <option name="INDEPENDENT_SCRIPT_PATH" value="true" />
+    <option name="SCRIPT_PATH" value="" />
+    <option name="SCRIPT_OPTIONS" value="" />
+    <option name="INDEPENDENT_SCRIPT_WORKING_DIRECTORY" value="true" />
+    <option name="SCRIPT_WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="INDEPENDENT_INTERPRETER_PATH" value="true" />
+    <option name="INTERPRETER_PATH" value="/bin/bash" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="EXECUTE_IN_TERMINAL" value="false" />
+    <option name="EXECUTE_SCRIPT_FILE" value="false" />
+    <envs />
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="go build gophermart" run_configuration_type="GoApplicationRunConfiguration" />
+    </method>
+  </configuration>
+</component>
