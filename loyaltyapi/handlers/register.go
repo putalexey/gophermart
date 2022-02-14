@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"database/sql"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
@@ -33,7 +33,7 @@ func (h *Handlers) Register(repo repository.UserRepository) func(c *gin.Context)
 			return
 		}
 
-		if err != sql.ErrNoRows {
+		if !errors.Is(err, repository.ErrUserNotFound) {
 			h.Logger.Error(err)
 			responses.JSONError(c, http.StatusInternalServerError, "server error")
 			return
