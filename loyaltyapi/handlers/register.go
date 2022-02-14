@@ -33,10 +33,17 @@ func Register(mw *ginjwt.GinJWTMiddleware, repo repository.UserRepository) func(
 			return
 		}
 
+		hash, err := utils.PasswordHash(registerRequest.Password)
+		if err != nil {
+			h.Logger.Error(err)
+			responses.JSONError(c, http.StatusInternalServerError, "server error")
+			return
+		}
+
 		user := &models.User{
 			UUID:     uuid.NewString(),
 			Login:    registerRequest.Login,
-			Password: utils.PasswordHash(registerRequest.Password),
+			Password: hash,
 		}
 
 		_, err = repo.CreateUser(c, user)

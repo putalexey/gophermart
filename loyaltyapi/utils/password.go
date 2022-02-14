@@ -1,17 +1,15 @@
 package utils
 
 import (
-	"crypto/sha256"
-	"fmt"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func PasswordHash(password string) string {
-	sha := sha256.New()
-	sha.Write([]byte(password))
-	return fmt.Sprintf("%x", sha.Sum(nil))
+func PasswordHash(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
 }
 
 func PasswordCheck(password, passwordHash string) bool {
-	newHash := PasswordHash(password)
-	return newHash == passwordHash
+	err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
+	return err == nil
 }
