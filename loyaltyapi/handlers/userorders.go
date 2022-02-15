@@ -38,7 +38,7 @@ func (h *Handlers) UserCreateOrder(repo repository.OrderRepository) func(*gin.Co
 		}
 
 		existingOrder, err := repo.GetOrderByNumber(c, number)
-		if err == nil || !errors.Is(err, repository.ErrOrderNotFound) {
+		if err == nil || !errors.Is(err, repository.ErrNotFound) {
 			if err != nil {
 				h.Logger.Error(err)
 				responses.JSONError(c, http.StatusInternalServerError, "server error")

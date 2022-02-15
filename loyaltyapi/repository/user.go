@@ -16,10 +16,10 @@ type UserRepository interface {
 
 func (r *Repo) GetUser(ctx context.Context, id string) (*models.User, error) {
 	var user = &models.User{}
-	err := r.DB.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE uuid = $1", id)
+	err := r.db.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE uuid = $1", id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -28,10 +28,10 @@ func (r *Repo) GetUser(ctx context.Context, id string) (*models.User, error) {
 
 func (r *Repo) FindUserByLogin(ctx context.Context, login string) (*models.User, error) {
 	var user = &models.User{}
-	err := r.DB.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE login like $1", login)
+	err := r.db.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE login like $1", login)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (r *Repo) FindUserByLogin(ctx context.Context, login string) (*models.User,
 }
 
 func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, error) {
-	return r.DB.NamedExecContext(
+	return r.db.NamedExecContext(
 		ctx,
 		"INSERT INTO users (uuid, login, password) VALUES (:uuid, :login, :password)",
 		user,
@@ -47,9 +47,9 @@ func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, e
 }
 
 func (r *Repo) SaveUser(ctx context.Context, user *models.User) (sql.Result, error) {
-	return r.DB.NamedExecContext(
+	return r.db.NamedExecContext(
 		ctx,
-		"UPDATE users SET (login=:login, password=:password) WHERE uuid=:uuid",
+		"UPDATE users SET login=:login, password=:password WHERE uuid=:uuid",
 		user,
 	)
 }

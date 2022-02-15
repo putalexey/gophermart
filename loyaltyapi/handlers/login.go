@@ -23,7 +23,7 @@ func (h *Handlers) Authenticator(repo repository.UserRepository) func(c *gin.Con
 
 		user, err := repo.FindUserByLogin(c, loginRequest.Login)
 		if err != nil {
-			if errors.Is(err, repository.ErrUserNotFound) {
+			if errors.Is(err, repository.ErrNotFound) {
 				return nil, ginjwt.ErrFailedAuthentication
 			} else {
 				return nil, err

@@ -27,15 +27,16 @@ func (h *Handlers) Register(repo repository.UserRepository) func(c *gin.Context)
 		}
 
 		_, err := repo.FindUserByLogin(c, registerRequest.Login)
-		if err == nil {
-			// user found
-			responses.JSONError(c, http.StatusConflict, "login already in use")
+
+		if !errors.Is(err, repository.ErrNotFound) {
+			h.Logger.Error(err)
+			responses.JSONError(c, http.StatusInternalServerError, "server error")
 			return
 		}
 
-		if !errors.Is(err, repository.ErrUserNotFound) {
-			h.Logger.Error(err)
-			responses.JSONError(c, http.StatusInternalServerError, "server error")
+		if err == nil {
+			// user found
+			responses.JSONError(c, http.StatusConflict, "login already in use")
 			return
 		}
 

@@ -2,41 +2,19 @@ package main
 
 import (
 	"context"
-	"errors"
-	"flag"
-	"github.com/caarlos0/env/v6"
+	"github.com/putalexey/gophermart/cmd/gophermart/config"
 	"github.com/putalexey/gophermart/loyaltyapi"
 	"go.uber.org/zap"
 	"log"
 	"os"
 	"os/signal"
-	"regexp"
 	"sync"
 	"syscall"
+	"time"
 )
 
-var addressPattern = `^.+?:\d{1,5}$`
-
-type AppConfig struct {
-	Address              string `env:"RUN_ADDRESS"`
-	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
-	DatabaseDSN          string `env:"DATABASE_URI"`
-	MigrationsDir        string `env:"DATABASE_MIGRATIONS"`
-}
-
 func main() {
-	cfg := AppConfig{
-		Address:              "localhost:8000",
-		AccrualSystemAddress: "",
-		DatabaseDSN:          "",
-		MigrationsDir:        "migrations",
-	}
-	err := env.Parse(&cfg)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	parseFlags(&cfg)
-	err = checkConfig(cfg)
+	cfg, err := config.Parse()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -54,7 +32,7 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	loyaltyAPIConfig := loyaltyapi.LoyaltyAPIConfig{
+	loyaltyAPIConfig := loyaltyapi.Config{
 		DatabaseDSN:    cfg.DatabaseDSN,
 		Address:        cfg.Address,
 		AccrualAddress: cfg.AccrualSystemAddress,
@@ -68,6 +46,8 @@ func main() {
 	go func() {
 		// Launch Gin and
 		// handle potential error
+		time.Sleep(3 * time.Second)
+
 		app.Run(ctx)
 
 		wg.Done()
@@ -77,6 +57,10 @@ func main() {
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	//select {
+	//case <-quit:
+	//case <-ctx.Done():
+	//}
 
 	logger.Info("Gracefully shutting down server...")
 	cancel()
@@ -91,43 +75,4 @@ func makeLogger() *zap.SugaredLogger {
 	//baseLogger, _ := zap.NewProduction()
 	baseLogger, _ := zap.NewDevelopment()
 	return baseLogger.Sugar()
-}
-
-func checkConfig(cfg AppConfig) error {
-	if cfg.Address == "" {
-		return errors.New("не указан адрес и порт запуска сервиса")
-	}
-	if cfg.DatabaseDSN == "" {
-		return errors.New("не указан адрес подключения к базе данных")
-	}
-	if cfg.AccrualSystemAddress == "" {
-		return errors.New("не указан адрес системы расчёта начислений")
-	}
-
-	if matched, _ := regexp.Match(addressPattern, []byte(cfg.Address)); !matched {
-		return errors.New("неверный формат адреса запуска сервиса (host:port)")
-	}
-
-	if matched, _ := regexp.Match(addressPattern, []byte(cfg.AccrualSystemAddress)); !matched {
-		return errors.New("неверный формат адреса системы расчёта начислений (host:port)")
-	}
-
-	return nil
-}
-
-func parseFlags(cfg *AppConfig) {
-	addressFlag := flag.String("a", "", "адрес и порт запуска сервиса")
-	databaseDSNFlag := flag.String("d", "", "адрес подключения к базе данных")
-	accrualAddressFlag := flag.String("r", "", "адрес системы расчёта начислений")
-	flag.Parse()
-
-	if *addressFlag != "" {
-		cfg.Address = *addressFlag
-	}
-	if *databaseDSNFlag != "" {
-		cfg.DatabaseDSN = *databaseDSNFlag
-	}
-	if *accrualAddressFlag != "" {
-		cfg.AccrualSystemAddress = *accrualAddressFlag
-	}
 }
