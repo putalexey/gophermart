@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="a2a test" type="ShConfigurationType">
+  <configuration default="false" name="e2e test" type="ShConfigurationType">
     <option name="SCRIPT_TEXT" value="./gophermarttest -test.v -test.run=^TestGophermart$ -gophermart-binary-path=cmd/gophermart/gophermart -gophermart-host=localhost -gophermart-port=8080 -gophermart-database-uri=&quot;postgresql://postgres:postgres@localhost/praktikum?sslmode=disable&quot; -accrual-binary-path=cmd/accrual/accrual_linux_amd64 -accrual-host=localhost -accrual-port=$(./random unused-port) -accrual-database-uri=&quot;postgresql://postgres:postgres@localhost/praktikum?sslmode=disable&quot;" />
     <option name="INDEPENDENT_SCRIPT_PATH" value="true" />
     <option name="SCRIPT_PATH" value="" />
