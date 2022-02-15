@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"github.com/caarlos0/env/v6"
-	"github.com/putalexey/gophermart/app/api"
+	"github.com/putalexey/gophermart/loyaltyapi"
 	"go.uber.org/zap"
 	"log"
 	"os"
@@ -21,6 +21,7 @@ type AppConfig struct {
 	Address              string `env:"RUN_ADDRESS"`
 	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	DatabaseDSN          string `env:"DATABASE_URI"`
+	MigrationsDir        string `env:"DATABASE_MIGRATIONS"`
 }
 
 func main() {
@@ -28,6 +29,7 @@ func main() {
 		Address:              "localhost:8000",
 		AccrualSystemAddress: "",
 		DatabaseDSN:          "",
+		MigrationsDir:        "migrations",
 	}
 	err := env.Parse(&cfg)
 	if err != nil {
@@ -52,20 +54,26 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
+	loyaltyAPIConfig := loyaltyapi.LoyaltyAPIConfig{
+		DatabaseDSN:    cfg.DatabaseDSN,
+		Address:        cfg.Address,
+		AccrualAddress: cfg.AccrualSystemAddress,
+		MigrationsDir:  cfg.MigrationsDir,
+		SecretKey:      "some secret key",
+	}
+	app, err := loyaltyapi.New(logger, loyaltyAPIConfig)
+	if err != nil {
+		logger.Fatal(err)
+	}
 	go func() {
 		// Launch Gin and
 		// handle potential error
-		api.Api{
-			Logger:         logger,
-			Address:        cfg.Address,
-			AccrualAddress: cfg.AccrualSystemAddress,
-			DatabaseDSN:    cfg.DatabaseDSN,
-		}.Run(ctx)
+		app.Run(ctx)
 
 		wg.Done()
 	}()
 
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -80,8 +88,8 @@ func main() {
 }
 
 func makeLogger() *zap.SugaredLogger {
-	baseLogger, _ := zap.NewProduction()
-	//baseLogger, _ := zap.NewDevelopment()
+	//baseLogger, _ := zap.NewProduction()
+	baseLogger, _ := zap.NewDevelopment()
 	return baseLogger.Sugar()
 }
 
