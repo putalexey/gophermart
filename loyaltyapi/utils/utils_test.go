@@ -15,6 +15,8 @@ func TestCheckOrderNumber(t *testing.T) {
 		want bool
 	}{
 		{name: "check valid number", args: args{number: "4561261212345467"}, want: true},
+		{name: "check valid number", args: args{number: "18483015276379"}, want: true},
+		{name: "check valid number", args: args{number: "1848301527637"}, want: true},
 		{name: "check invalid number", args: args{number: "4561261212345464"}, want: false},
 		{name: "check valid number with non digits", args: args{number: "4561 2612 1234 5467 asd"}, want: true},
 		{name: "check invalid number with non digits", args: args{number: "4561 2612 1234 5464"}, want: false},

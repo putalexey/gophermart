@@ -15,14 +15,14 @@ func CheckOrderNumber(number string) bool {
 
 	numberLen := len(number)
 	check := 0
-	isOdd := numberLen%2 == 0
+	lenMod := numberLen % 2
 
 	for i := 0; i < numberLen; i++ {
 		n, err := strconv.Atoi(string(number[i]))
 		if err != nil {
 			return false
 		}
-		if isOdd && i%2 == 0 {
+		if i%2 == lenMod {
 			prod := n * 2
 			if prod > 9 {
 				prod -= 9
