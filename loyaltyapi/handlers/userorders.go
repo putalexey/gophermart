@@ -44,20 +44,17 @@ func (h *Handlers) UserCreateOrder(repo repository.OrderRepository) func(*gin.Co
 				responses.JSONError(c, http.StatusInternalServerError, "server error")
 				return
 			}
-			if existingOrder.UserUUID == user.UUID {
-				h.Logger.Error(err)
-				responses.JSON(c, http.StatusOK, nil)
-				return
-			}
-			if existingOrder.UserUUID == user.UUID {
-				h.Logger.Error(err)
+			if existingOrder.UserUUID != user.UUID {
 				responses.JSONError(c, http.StatusConflict, "already loaded by another user")
 				return
 			}
+			responses.JSON(c, http.StatusOK, nil)
+			return
 		}
 
 		order := models.NewOrder()
 		order.UserUUID = user.UUID
+		order.Number = number
 
 		_, err = repo.CreateOrder(c, order)
 		if err != nil {
@@ -83,7 +80,7 @@ func (h *Handlers) UserGetOrders(repo repository.OrderRepository) func(*gin.Cont
 			responses.JSONError(c, http.StatusInternalServerError, "server error")
 			return
 		}
-		orders, err := repo.GetOrders(c, user)
+		orders, err := repo.GetUserOrders(c, user)
 		if err != nil {
 			responses.JSONError(c, http.StatusInternalServerError, err.Error())
 			return

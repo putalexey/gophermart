@@ -10,23 +10,58 @@ import (
 type OrderRepository interface {
 	GetOrder(ctx context.Context, ID string) (*models.Order, error)
 	GetOrderByNumber(ctx context.Context, number string) (*models.Order, error)
-	GetOrders(ctx context.Context, user *models.User) ([]*models.Order, error)
+	GetUserOrders(ctx context.Context, user *models.User) ([]models.Order, error)
 	CreateOrder(ctx context.Context, order *models.Order) (sql.Result, error)
 	SaveOrder(ctx context.Context, order *models.Order) (sql.Result, error)
 }
 
-func (r *Repo) GetOrder(ctx context.Context, ID string) (*models.Order, error) {
-	return nil, errors.New("not implemented")
+func (r *Repo) GetOrder(ctx context.Context, uuid string) (*models.Order, error) {
+	order := &models.Order{}
+	query := `SELECT uuid, user_uuid, number, status, accrual, uploaded_at FROM orders WHERE uuid=$1 LIMIT 1`
+	err := r.DB.GetContext(ctx, order, query, uuid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrOrderNotFound
+		}
+		return nil, err
+	}
+
+	return order, nil
 }
+
 func (r *Repo) GetOrderByNumber(ctx context.Context, number string) (*models.Order, error) {
-	return nil, errors.New("not implemented")
+	order := &models.Order{}
+	query := `SELECT uuid, user_uuid, number, status, accrual, uploaded_at FROM orders WHERE number=$1 LIMIT 1`
+	err := r.DB.GetContext(ctx, order, query, number)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrOrderNotFound
+		}
+		return nil, err
+	}
+
+	return order, nil
 }
-func (r *Repo) GetOrders(ctx context.Context, user *models.User) ([]*models.Order, error) {
-	return nil, errors.New("not implemented")
+
+func (r *Repo) GetUserOrders(ctx context.Context, user *models.User) ([]models.Order, error) {
+	//goland:noinspection GoPreferNilSlice
+	orders := []models.Order{}
+	query := "SELECT uuid, user_uuid, number, status, accrual, uploaded_at FROM orders WHERE user_uuid=$1 order by uploaded_at"
+	err := r.DB.SelectContext(ctx, &orders, query, user.UUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return orders, nil
 }
+
 func (r *Repo) CreateOrder(ctx context.Context, order *models.Order) (sql.Result, error) {
-	return nil, errors.New("not implemented")
+	query := `INSERT INTO orders (uuid, user_uuid, number, status, accrual, uploaded_at) VALUES (:uuid, :user_uuid, :number, :status, :accrual, :uploaded_at)`
+	return r.DB.NamedExecContext(ctx, query, order)
 }
+
+// SaveOrder accrual is change by another function
 func (r *Repo) SaveOrder(ctx context.Context, order *models.Order) (sql.Result, error) {
-	return nil, errors.New("not implemented")
+	query := `UPDATE orders SET user_uuid=:user_uuid, number=:number, status=:status, accrual=:accrual WHERE uuid=:uuid`
+	return r.DB.NamedExecContext(ctx, query, order)
 }
