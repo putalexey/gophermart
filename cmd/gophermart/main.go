@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 )
 
 func main() {
@@ -46,8 +45,6 @@ func main() {
 	go func() {
 		// Launch Gin and
 		// handle potential error
-		time.Sleep(3 * time.Second)
-
 		app.Run(ctx)
 
 		wg.Done()
@@ -56,11 +53,10 @@ func main() {
 	quit := make(chan os.Signal, 1)
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	//select {
-	//case <-quit:
-	//case <-ctx.Done():
-	//}
+	select {
+	case <-quit:
+	case <-ctx.Done():
+	}
 
 	logger.Info("Gracefully shutting down server...")
 	cancel()

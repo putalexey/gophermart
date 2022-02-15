@@ -8,7 +8,6 @@ import (
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/stdlib"
-	"github.com/jmoiron/sqlx"
 	"github.com/putalexey/gophermart/loyaltyapi/handlers"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
 	"github.com/putalexey/gophermart/loyaltyapi/repository"
@@ -34,7 +33,6 @@ type LoyaltyAPI struct {
 	secretKey      string
 	srv            *http.Server
 	router         *gin.Engine
-	db             *sqlx.DB
 	repository     *repository.Repo
 }
 

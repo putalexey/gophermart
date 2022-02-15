@@ -40,7 +40,6 @@ func New(DatabaseDSN string, migrationsDir string) (*Repo, error) {
 }
 
 func (r *Repo) connectToDB() error {
-	//db, err := sql.Open("pgx", a.DatabaseDSN)
 	db, err := sqlx.Open("pgx", r.DatabaseDSN)
 	if err != nil {
 		return err
