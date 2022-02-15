@@ -9,7 +9,7 @@ import (
 	"github.com/putalexey/gophermart/loyaltyapi/utils"
 )
 
-func Authenticator(repo repository.UserRepository) func(c *gin.Context) (interface{}, error) {
+func (h *Handlers) Authenticator(repo repository.UserRepository) func(c *gin.Context) (interface{}, error) {
 	return func(c *gin.Context) (interface{}, error) {
 		loginRequest := requests.LoginRequest{}
 		err := c.ShouldBindJSON(&loginRequest)
@@ -23,7 +23,7 @@ func Authenticator(repo repository.UserRepository) func(c *gin.Context) (interfa
 
 		user, err := repo.FindUserByLogin(c, loginRequest.Login)
 		if err != nil {
-			if errors.Is(err, repository.ErrUserNotFound) {
+			if errors.Is(err, repository.ErrNotFound) {
 				return nil, ginjwt.ErrFailedAuthentication
 			} else {
 				return nil, err
