@@ -6,6 +6,6 @@ import (
 	"net/http"
 )
 
-func NotImplemented(c *gin.Context) {
+func (h *Handlers) NotImplemented(c *gin.Context) {
 	responses.JSONError(c, http.StatusNotImplemented, "not implemented")
 }

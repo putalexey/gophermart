@@ -1,16 +1,14 @@
 package repository
 
 import (
-	"context"
-	"database/sql"
 	"errors"
 	"github.com/jmoiron/sqlx"
 	"github.com/pressly/goose/v3"
-	"github.com/putalexey/gophermart/loyaltyapi/models"
+	"time"
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrNotFound = errors.New("not found")
 )
 
 type Repositorier interface {
@@ -18,28 +16,21 @@ type Repositorier interface {
 	OrderRepository
 }
 
-type UserRepository interface {
-	GetUser(ctx context.Context, ID string) (*models.User, error)
-	FindUserByLogin(ctx context.Context, Login string) (*models.User, error)
-	CreateUser(ctx context.Context, user *models.User) (sql.Result, error)
-	SaveUser(ctx context.Context, user *models.User) (sql.Result, error)
-}
-
-type OrderRepository interface {
-	GetOrder(ctx context.Context, ID string) (*models.User, error)
-	GetOrders(ctx context.Context, user *models.User) (*models.Order, error)
-}
-
 type Repo struct {
-	DB *sqlx.DB
+	DatabaseDSN string
+	db          *sqlx.DB
 }
 
-func New(db *sqlx.DB, migrationsDir string) (*Repo, error) {
-	repo := &Repo{DB: db}
+func New(DatabaseDSN string, migrationsDir string) (*Repo, error) {
+	repo := &Repo{DatabaseDSN: DatabaseDSN}
+	err := repo.connectToDB()
+	if err != nil {
+		return nil, err
+	}
 
 	//migrate
 	if migrationsDir != "" {
-		err := goose.Up(db.DB, migrationsDir)
+		err := goose.Up(repo.db.DB, migrationsDir)
 		if err != nil {
 			return nil, err
 		}
@@ -48,42 +39,22 @@ func New(db *sqlx.DB, migrationsDir string) (*Repo, error) {
 	return repo, nil
 }
 
-func (r *Repo) GetUser(ctx context.Context, id string) (*models.User, error) {
-	var user = &models.User{}
-	err := r.DB.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE uuid = $1", id)
+func (r *Repo) connectToDB() error {
+	db, err := sqlx.Open("pgx", r.DatabaseDSN)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
+		return err
 	}
-	return user, nil
-}
 
-func (r *Repo) FindUserByLogin(ctx context.Context, login string) (*models.User, error) {
-	var user = &models.User{}
-	err := r.DB.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE login like $1", login)
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(20)
+	db.SetConnMaxIdleTime(30 * time.Second)
+	db.SetConnMaxLifetime(2 * time.Minute)
+
+	r.db = db
+	err = r.db.Ping()
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
+		return err
 	}
-	return user, nil
-}
 
-func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, error) {
-	return r.DB.NamedExecContext(
-		ctx,
-		"INSERT INTO users (uuid, login, password) VALUES (:uuid, :login, :password)",
-		user,
-	)
-}
-
-func (r *Repo) SaveUser(ctx context.Context, user *models.User) (sql.Result, error) {
-	return r.DB.NamedExecContext(
-		ctx,
-		"UPDATE users SET (login=:login, password=:password) WHERE uuid=:uuid",
-		user,
-	)
+	return nil
 }

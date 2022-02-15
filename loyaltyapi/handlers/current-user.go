@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func CurrentUser() func(c *gin.Context) {
+func (h *Handlers) CurrentUser() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		user, _ := c.Get(models.UserIdentityKey)
 		responses.JSON(c, http.StatusOK, user)

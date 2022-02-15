@@ -8,7 +8,6 @@ import (
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/stdlib"
-	"github.com/jmoiron/sqlx"
 	"github.com/putalexey/gophermart/loyaltyapi/handlers"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
 	"github.com/putalexey/gophermart/loyaltyapi/repository"
@@ -17,7 +16,7 @@ import (
 	"time"
 )
 
-type LoyaltyAPIConfig struct {
+type Config struct {
 	DatabaseDSN    string
 	Address        string
 	AccrualAddress string
@@ -34,11 +33,10 @@ type LoyaltyAPI struct {
 	secretKey      string
 	srv            *http.Server
 	router         *gin.Engine
-	db             *sqlx.DB
 	repository     *repository.Repo
 }
 
-func New(logger *zap.SugaredLogger, config LoyaltyAPIConfig) (*LoyaltyAPI, error) {
+func New(logger *zap.SugaredLogger, config Config) (*LoyaltyAPI, error) {
 	app := &LoyaltyAPI{
 		Logger:         logger,
 		DatabaseDSN:    config.DatabaseDSN,
@@ -47,39 +45,14 @@ func New(logger *zap.SugaredLogger, config LoyaltyAPIConfig) (*LoyaltyAPI, error
 		MigrationsDir:  config.MigrationsDir,
 		secretKey:      config.SecretKey,
 	}
-	err := app.Init()
+	err := app.init()
 	return app, err
 }
 
-func (a *LoyaltyAPI) connectToDB() error {
-	//db, err := sql.Open("pgx", a.DatabaseDSN)
-	db, err := sqlx.Open("pgx", a.DatabaseDSN)
-	if err != nil {
-		return err
-	}
+func (a *LoyaltyAPI) init() error {
+	var err error
 
-	db.SetMaxOpenConns(20)
-	db.SetMaxIdleConns(20)
-	db.SetConnMaxIdleTime(30 * time.Second)
-	db.SetConnMaxLifetime(2 * time.Minute)
-
-	a.db = db
-	err = a.db.Ping()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *LoyaltyAPI) Init() error {
-	// Connect to DB
-	err := a.connectToDB()
-	if err != nil {
-		return err
-	}
-
-	a.repository, err = repository.New(a.db, a.MigrationsDir)
+	a.repository, err = repository.New(a.DatabaseDSN, a.MigrationsDir)
 	if err != nil {
 		return err
 	}
@@ -109,13 +82,16 @@ func (a *LoyaltyAPI) Init() error {
 			}
 			return user
 		},
-		Key:           []byte(a.secretKey),
-		Authenticator: handlers.Authenticator(a.repository),
-		TokenLookup:   "header: Authorization, query: token, cookie: jwt",
+		Key:         []byte(a.secretKey),
+		TokenLookup: "header: Authorization, query: token, cookie: jwt",
 	})
 	if err != nil {
 		return err
 	}
+
+	handle := handlers.New(a.Logger, jwtMiddleware)
+
+	jwtMiddleware.Authenticator = handle.Authenticator(a.repository)
 
 	// Create gin router
 	a.router = gin.New()
@@ -123,17 +99,17 @@ func (a *LoyaltyAPI) Init() error {
 	a.router.Use(ginzap.RecoveryWithZap(a.Logger.Desugar(), true))
 	a.router.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	a.router.POST("/api/user/register", handlers.Register(jwtMiddleware, a.repository))
+	a.router.POST("/api/user/register", handle.Register(a.repository))
 	a.router.POST("/api/user/login", jwtMiddleware.LoginHandler)
 
 	authGroup := a.router.Group("")
 	authGroup.Use(jwtMiddleware.MiddlewareFunc())
-	authGroup.GET("/api/me", handlers.CurrentUser())
-	authGroup.POST("/api/user/orders", handlers.NotImplemented)
-	authGroup.GET("/api/user/orders", handlers.NotImplemented)
-	authGroup.GET("/api/user/balance", handlers.NotImplemented)
-	authGroup.POST("/api/user/balance/withdraw", handlers.NotImplemented)
-	authGroup.GET("/api/user/balance/withdrawals", handlers.NotImplemented)
+	authGroup.GET("/api/me", handle.CurrentUser())
+	authGroup.POST("/api/user/orders", handle.UserCreateOrder(a.repository))
+	authGroup.GET("/api/user/orders", handle.UserGetOrders(a.repository))
+	authGroup.GET("/api/user/balance", handle.NotImplemented)
+	authGroup.POST("/api/user/balance/withdraw", handle.NotImplemented)
+	authGroup.GET("/api/user/balance/withdrawals", handle.NotImplemented)
 
 	return nil
 }
