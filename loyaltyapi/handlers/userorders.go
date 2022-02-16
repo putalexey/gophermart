@@ -3,15 +3,17 @@ package handlers
 import (
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
 	"github.com/putalexey/gophermart/loyaltyapi/repository"
 	"github.com/putalexey/gophermart/loyaltyapi/responses"
 	"github.com/putalexey/gophermart/loyaltyapi/utils"
 	"io"
 	"net/http"
+	"time"
 )
 
-func (h *Handlers) UserCreateOrder(repo repository.OrderRepository) func(*gin.Context) {
+func (h *Handlers) UserCreateOrder(orderRepo repository.OrderRepository, jobRepo repository.JobRepository) func(*gin.Context) {
 	return func(c *gin.Context) {
 		tmpUser, exists := c.Get(models.UserIdentityKey)
 		if !exists {
@@ -37,7 +39,7 @@ func (h *Handlers) UserCreateOrder(repo repository.OrderRepository) func(*gin.Co
 			return
 		}
 
-		existingOrder, err := repo.GetOrderByNumber(c, number)
+		existingOrder, err := orderRepo.GetOrderByNumber(c, number)
 		if err == nil || !errors.Is(err, repository.ErrNotFound) {
 			if err != nil {
 				h.Logger.Error(err)
@@ -56,10 +58,21 @@ func (h *Handlers) UserCreateOrder(repo repository.OrderRepository) func(*gin.Co
 		order.UserUUID = user.UUID
 		order.Number = number
 
-		_, err = repo.CreateOrder(c, order)
+		_, err = orderRepo.CreateOrder(c, order)
 		if err != nil {
 			responses.JSONError(c, http.StatusInternalServerError, err.Error())
 			return
+		}
+
+		job := &models.Job{
+			UUID:      uuid.NewString(),
+			OrderUUID: order.UUID,
+			ProceedAt: time.Now(),
+			Tries:     0,
+		}
+		err = jobRepo.CreateJob(c, job)
+		if err != nil {
+			h.Logger.Error("failed to create job", err)
 		}
 
 		responses.JSON(c, http.StatusAccepted, nil)

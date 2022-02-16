@@ -106,7 +106,7 @@ func (a *LoyaltyAPI) init() error {
 	authGroup := a.router.Group("")
 	authGroup.Use(jwtMiddleware.MiddlewareFunc())
 	authGroup.GET("/api/me", handle.CurrentUser())
-	authGroup.POST("/api/user/orders", handle.UserCreateOrder(a.repository))
+	authGroup.POST("/api/user/orders", handle.UserCreateOrder(a.repository, a.repository))
 	authGroup.GET("/api/user/orders", handle.UserGetOrders(a.repository))
 	authGroup.GET("/api/user/balance", handle.GetUserBalance(a.repository))
 	authGroup.POST("/api/user/balance/withdraw", handle.BalanceWithdraw(a.repository))

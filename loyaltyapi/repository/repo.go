@@ -15,6 +15,8 @@ var (
 type Repositorier interface {
 	UserRepository
 	OrderRepository
+	BalanceRepository
+	JobRepository
 }
 
 type Repo struct {
