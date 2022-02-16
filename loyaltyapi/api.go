@@ -95,6 +95,7 @@ func (a *LoyaltyAPI) init() error {
 
 	// Create gin router
 	a.router = gin.New()
+	a.router.HandleMethodNotAllowed = true
 	a.router.Use(ginzap.Ginzap(a.Logger.Desugar(), time.RFC3339, true))
 	a.router.Use(ginzap.RecoveryWithZap(a.Logger.Desugar(), true))
 	a.router.Use(gzip.Gzip(gzip.DefaultCompression))
@@ -107,9 +108,9 @@ func (a *LoyaltyAPI) init() error {
 	authGroup.GET("/api/me", handle.CurrentUser())
 	authGroup.POST("/api/user/orders", handle.UserCreateOrder(a.repository))
 	authGroup.GET("/api/user/orders", handle.UserGetOrders(a.repository))
-	authGroup.GET("/api/user/balance", handle.NotImplemented)
-	authGroup.POST("/api/user/balance/withdraw", handle.NotImplemented)
-	authGroup.GET("/api/user/balance/withdrawals", handle.NotImplemented)
+	authGroup.GET("/api/user/balance", handle.GetUserBalance(a.repository))
+	authGroup.POST("/api/user/balance/withdraw", handle.BalanceWithdraw(a.repository))
+	authGroup.GET("/api/user/balance/withdrawals", handle.GetBalanceWithdrawals(a.repository))
 
 	return nil
 }
