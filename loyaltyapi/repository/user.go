@@ -43,7 +43,7 @@ func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, e
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Commit()
+	defer tx.Rollback()
 
 	result, err := tx.NamedExecContext(
 		ctx,
@@ -51,7 +51,6 @@ func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, e
 		user,
 	)
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -63,10 +62,12 @@ func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, e
 
 	_, err = r.createBalanceTx(tx, ctx, balance)
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 

@@ -75,15 +75,13 @@ func (r *Repo) BalanceWithdraw(ctx context.Context, withdrawal *models.Withdrawa
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Commit()
+	defer tx.Rollback()
 
 	balance, err := r.getUserBalanceTxForUpdate(tx, ctx, withdrawal.UserUUID)
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 	if balance.Current < withdrawal.Sum {
-		tx.Rollback()
 		return nil, ErrNotEnoughBalance
 	}
 
@@ -91,7 +89,6 @@ func (r *Repo) BalanceWithdraw(ctx context.Context, withdrawal *models.Withdrawa
 	balance.Withdrawn += withdrawal.Sum
 	_, err = r.saveBalanceTx(tx, ctx, balance)
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -102,11 +99,13 @@ func (r *Repo) BalanceWithdraw(ctx context.Context, withdrawal *models.Withdrawa
 		withdrawal,
 	)
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	return result, err
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (r *Repo) GetBalanceWithdrawals(ctx context.Context, user *models.User) ([]models.Withdrawal, error) {
