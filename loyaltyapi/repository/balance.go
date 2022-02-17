@@ -10,6 +10,7 @@ import (
 
 type BalanceRepository interface {
 	GetUserBalance(ctx context.Context, userUUID string) (*models.Balance, error)
+	BalanceDeposit(ctx context.Context, deposit *models.Deposit) (sql.Result, error)
 	BalanceWithdraw(ctx context.Context, withdrawal *models.Withdrawal) (sql.Result, error)
 	GetBalanceWithdrawals(ctx context.Context, user *models.User) ([]models.Withdrawal, error)
 }
@@ -98,6 +99,30 @@ func (r *Repo) BalanceWithdraw(ctx context.Context, withdrawal *models.Withdrawa
 		query,
 		withdrawal,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *Repo) BalanceDeposit(ctx context.Context, deposit *models.Deposit) (sql.Result, error) {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	balance, err := r.getUserBalanceTxForUpdate(tx, ctx, deposit.UserUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	balance.Current += deposit.Sum
+	result, err := r.saveBalanceTx(tx, ctx, balance)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,8 @@ import (
 	"github.com/putalexey/gophermart/loyaltyapi/handlers"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
 	"github.com/putalexey/gophermart/loyaltyapi/repository"
+	"github.com/putalexey/gophermart/loyaltyapi/services"
+	"github.com/putalexey/gophermart/loyaltyapi/workers"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -34,6 +36,7 @@ type LoyaltyAPI struct {
 	srv            *http.Server
 	router         *gin.Engine
 	repository     *repository.Repo
+	accrualService *services.Accrual
 }
 
 func New(logger *zap.SugaredLogger, config Config) (*LoyaltyAPI, error) {
@@ -55,6 +58,10 @@ func (a *LoyaltyAPI) init() error {
 	a.repository, err = repository.New(a.DatabaseDSN, a.MigrationsDir)
 	if err != nil {
 		return err
+	}
+
+	a.accrualService = &services.Accrual{
+		Address: a.AccrualAddress,
 	}
 
 	// Create jwtMiddleware
@@ -126,6 +133,11 @@ func (a *LoyaltyAPI) Run(ctx context.Context) {
 		if err := a.srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
 			a.Logger.Infof("listen: %s\n", err)
 		}
+	}()
+
+	go func() {
+		orderWorker := workers.New(ctx, a.Logger, a.repository, 10*time.Second, a.accrualService)
+		orderWorker.Run()
 	}()
 
 	<-ctx.Done()

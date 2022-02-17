@@ -15,3 +15,8 @@ type Withdrawal struct {
 	Sum         float64   `json:"sum" db:"sum"`
 	ProcessedAt time.Time `json:"processed_at" db:"processed_at"`
 }
+
+type Deposit struct {
+	UserUUID string
+	Sum      float64
+}

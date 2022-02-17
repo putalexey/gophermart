@@ -20,7 +20,7 @@ services:
     working_dir: "/home/accrual/"
     entrypoint: "./cmd/accrual/accrual_linux_amd64"
     environment:
-      RUN_ADDRESS: localhost:8001
+      RUN_ADDRESS: 0.0.0.0:8001
       DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
     volumes:
       - ./:/home/accrual
