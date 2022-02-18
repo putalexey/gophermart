@@ -113,6 +113,7 @@ func (o *OrderWorker) ProcessJob() {
 	}
 
 	isFinalStatus := false
+	doDeposit := false
 	switch orderStatus.Status {
 	case "REGISTERED":
 	case "INVALID": // — заказ не принят к расчёту, и вознаграждение не будет начислено;
@@ -122,11 +123,20 @@ func (o *OrderWorker) ProcessJob() {
 		order.Status = models.OrderStatusProcessing
 	case "PROCESSED": // — расчёт начисления окончен;
 		isFinalStatus = true
-		order.Status = models.OrderStatusProcessed
-		order.Accrual = orderStatus.Accrual
+		if order.Status != models.OrderStatusProcessed {
+			doDeposit = true
+			order.Status = models.OrderStatusProcessed
+			order.Accrual = orderStatus.Accrual
+		}
 	}
 
-	if order.Status == models.OrderStatusProcessed {
+	_, err = o.repo.SaveOrder(o.ctx, order)
+	if err != nil {
+		o.logger.Error(err)
+		return
+	}
+
+	if doDeposit {
 		deposit := &models.Deposit{
 			UserUUID: order.UserUUID,
 			Sum:      order.Accrual,
@@ -136,12 +146,6 @@ func (o *OrderWorker) ProcessJob() {
 			o.logger.Error(err)
 			return
 		}
-	}
-
-	_, err = o.repo.SaveOrder(o.ctx, order)
-	if err != nil {
-		o.logger.Error(err)
-		return
 	}
 
 	if isFinalStatus {
