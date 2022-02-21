@@ -8,12 +8,15 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound         = errors.New("not found")
+	ErrNotEnoughBalance = errors.New("not enough balance")
 )
 
 type Repositorier interface {
 	UserRepository
 	OrderRepository
+	BalanceRepository
+	JobRepository
 }
 
 type Repo struct {

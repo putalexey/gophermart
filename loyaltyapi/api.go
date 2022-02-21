@@ -11,6 +11,8 @@ import (
 	"github.com/putalexey/gophermart/loyaltyapi/handlers"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
 	"github.com/putalexey/gophermart/loyaltyapi/repository"
+	"github.com/putalexey/gophermart/loyaltyapi/services"
+	"github.com/putalexey/gophermart/loyaltyapi/workers"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -34,6 +36,7 @@ type LoyaltyAPI struct {
 	srv            *http.Server
 	router         *gin.Engine
 	repository     *repository.Repo
+	accrualService *services.Accrual
 }
 
 func New(logger *zap.SugaredLogger, config Config) (*LoyaltyAPI, error) {
@@ -55,6 +58,10 @@ func (a *LoyaltyAPI) init() error {
 	a.repository, err = repository.New(a.DatabaseDSN, a.MigrationsDir)
 	if err != nil {
 		return err
+	}
+
+	a.accrualService = &services.Accrual{
+		Address: a.AccrualAddress,
 	}
 
 	// Create jwtMiddleware
@@ -95,6 +102,7 @@ func (a *LoyaltyAPI) init() error {
 
 	// Create gin router
 	a.router = gin.New()
+	a.router.HandleMethodNotAllowed = true
 	a.router.Use(ginzap.Ginzap(a.Logger.Desugar(), time.RFC3339, true))
 	a.router.Use(ginzap.RecoveryWithZap(a.Logger.Desugar(), true))
 	a.router.Use(gzip.Gzip(gzip.DefaultCompression))
@@ -105,11 +113,11 @@ func (a *LoyaltyAPI) init() error {
 	authGroup := a.router.Group("")
 	authGroup.Use(jwtMiddleware.MiddlewareFunc())
 	authGroup.GET("/api/me", handle.CurrentUser())
-	authGroup.POST("/api/user/orders", handle.UserCreateOrder(a.repository))
+	authGroup.POST("/api/user/orders", handle.UserCreateOrder(a.repository, a.repository))
 	authGroup.GET("/api/user/orders", handle.UserGetOrders(a.repository))
-	authGroup.GET("/api/user/balance", handle.NotImplemented)
-	authGroup.POST("/api/user/balance/withdraw", handle.NotImplemented)
-	authGroup.GET("/api/user/balance/withdrawals", handle.NotImplemented)
+	authGroup.GET("/api/user/balance", handle.GetUserBalance(a.repository))
+	authGroup.POST("/api/user/balance/withdraw", handle.BalanceWithdraw(a.repository))
+	authGroup.GET("/api/user/balance/withdrawals", handle.GetBalanceWithdrawals(a.repository))
 
 	return nil
 }
@@ -125,6 +133,11 @@ func (a *LoyaltyAPI) Run(ctx context.Context) {
 		if err := a.srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
 			a.Logger.Infof("listen: %s\n", err)
 		}
+	}()
+
+	go func() {
+		orderWorker := workers.New(ctx, a.Logger, a.repository, 10*time.Second, a.accrualService)
+		orderWorker.Run()
 	}()
 
 	<-ctx.Done()

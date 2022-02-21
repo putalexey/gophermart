@@ -3,7 +3,7 @@
     <module name="gophermart" />
     <working_directory value="$PROJECT_DIR$" />
     <envs>
-      <env name="ACCRUAL_SYSTEM_ADDRESS" value="localhost:8001" />
+      <env name="ACCRUAL_SYSTEM_ADDRESS" value="http://localhost:8001" />
       <env name="DATABASE_URI" value="postgresql://postgres:postgres@localhost/praktikum?sslmode=disable" />
       <env name="RUN_ADDRESS" value="localhost:8000" />
     </envs>

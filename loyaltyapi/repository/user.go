@@ -39,11 +39,36 @@ func (r *Repo) FindUserByLogin(ctx context.Context, login string) (*models.User,
 }
 
 func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, error) {
-	return r.db.NamedExecContext(
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.NamedExecContext(
 		ctx,
 		"INSERT INTO users (uuid, login, password) VALUES (:uuid, :login, :password)",
 		user,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	balance := &models.Balance{
+		UserUUID:  user.UUID,
+		Current:   0,
+		Withdrawn: 0,
+	}
+
+	_, err = r.createBalanceTx(tx, ctx, balance)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (r *Repo) SaveUser(ctx context.Context, user *models.User) (sql.Result, error) {

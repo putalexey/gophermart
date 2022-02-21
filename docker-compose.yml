@@ -1,26 +1,26 @@
 version: "3.9"
 services:
-#  gophermart:
-#    image: golang:1.17
-#    working_dir: "/home/gophermart/"
-#    entrypoint: "go run ./cmd/gophermart"
-#    environment:
-#      RUN_ADDRESS: localhost:8000
-#      DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
-#      ACCRUAL_SYSTEM_ADDRESS: accrual:8001
-#    volumes:
-#      - ./:/home/gophermart
-#    depends_on:
-#      - postgres
-#      - accrual
-#    ports:
-#      - "8000:8000"
+  gophermart:
+    image: golang:1.17
+    working_dir: "/home/gophermart/"
+    entrypoint: "go run ./cmd/gophermart"
+    environment:
+      RUN_ADDRESS: 0.0.0.0:8000
+      DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
+      ACCRUAL_SYSTEM_ADDRESS: http://accrual:8001
+    volumes:
+      - ./:/home/gophermart
+    depends_on:
+      - postgres
+      - accrual
+    ports:
+      - "8000:8000"
   accrual:
     image: golang:1.17
     working_dir: "/home/accrual/"
     entrypoint: "./cmd/accrual/accrual_linux_amd64"
     environment:
-      RUN_ADDRESS: localhost:8001
+      RUN_ADDRESS: 0.0.0.0:8001
       DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
     volumes:
       - ./:/home/accrual

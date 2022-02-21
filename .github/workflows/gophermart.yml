@@ -49,6 +49,12 @@ jobs:
           (cd cmd/gophermart && go build -o gophermart)
           (cd cmd/accrual && chmod +x accrual_linux_amd64)
 
+      - name: install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@latest
+
+      - name: migrations
+        run: goose -dir migrations postgres "user=postgres password=postgres dbname=praktikum sslmode=disable host=postgres" up
+
       - name: Test
         run: |
           gophermarttest \
