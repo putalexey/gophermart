@@ -16,7 +16,7 @@ type UserRepository interface {
 
 func (r *Repo) GetUser(ctx context.Context, id string) (*models.User, error) {
 	var user = &models.User{}
-	err := r.db.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE uuid = $1", id)
+	err := r.req.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE uuid = $1", id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -28,7 +28,7 @@ func (r *Repo) GetUser(ctx context.Context, id string) (*models.User, error) {
 
 func (r *Repo) FindUserByLogin(ctx context.Context, login string) (*models.User, error) {
 	var user = &models.User{}
-	err := r.db.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE login like $1", login)
+	err := r.req.GetContext(ctx, user, "SELECT uuid, login, password FROM users WHERE login like $1", login)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -39,13 +39,13 @@ func (r *Repo) FindUserByLogin(ctx context.Context, login string) (*models.User,
 }
 
 func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, error) {
-	tx, err := r.db.Beginx()
+	rtx, err := r.Begin()
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer rtx.Rollback()
 
-	result, err := tx.NamedExecContext(
+	result, err := rtx.req.NamedExecContext(
 		ctx,
 		"INSERT INTO users (uuid, login, password) VALUES (:uuid, :login, :password)",
 		user,
@@ -60,19 +60,19 @@ func (r *Repo) CreateUser(ctx context.Context, user *models.User) (sql.Result, e
 		Withdrawn: 0,
 	}
 
-	_, err = r.createBalanceTx(tx, ctx, balance)
+	_, err = rtx.CreateBalance(ctx, balance)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = rtx.Commit(); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
 func (r *Repo) SaveUser(ctx context.Context, user *models.User) (sql.Result, error) {
-	return r.db.NamedExecContext(
+	return r.req.NamedExecContext(
 		ctx,
 		"UPDATE users SET login=:login, password=:password WHERE uuid=:uuid",
 		user,

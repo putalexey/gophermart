@@ -100,14 +100,14 @@ func (o *OrderWorker) ProcessJob() {
 			}
 			return
 		}
-		if errors.Is(err, services.ErrNotFound) {
-			job.Tries = 0
-			err = o.repo.UpdateJob(o.ctx, job)
-			if err != nil {
-				o.logger.Error(err)
-			}
-			return
-		}
+		//if errors.Is(err, services.ErrNotFound) {
+		//	job.Tries = 0
+		//	err = o.repo.UpdateJob(o.ctx, job)
+		//	if err != nil {
+		//		o.logger.Error(err)
+		//	}
+		//	return
+		//}
 		o.logger.Error(err)
 		return
 	}
@@ -130,7 +130,14 @@ func (o *OrderWorker) ProcessJob() {
 		}
 	}
 
-	_, err = o.repo.SaveOrder(o.ctx, order)
+	rtx, err := o.repo.Begin()
+	if err != nil {
+		o.logger.Error(err)
+		return
+	}
+	defer rtx.Rollback()
+
+	_, err = rtx.SaveOrder(o.ctx, order)
 	if err != nil {
 		o.logger.Error(err)
 		return
@@ -141,7 +148,7 @@ func (o *OrderWorker) ProcessJob() {
 			UserUUID: order.UserUUID,
 			Sum:      order.Accrual,
 		}
-		_, err = o.repo.BalanceDeposit(o.ctx, deposit)
+		_, err = rtx.BalanceDeposit(o.ctx, deposit)
 		if err != nil {
 			o.logger.Error(err)
 			return
@@ -149,15 +156,19 @@ func (o *OrderWorker) ProcessJob() {
 	}
 
 	if isFinalStatus {
-		err = o.repo.DeleteJob(o.ctx, job)
+		err = rtx.DeleteJob(o.ctx, job)
 		if err != nil {
 			o.logger.Error(err)
 			return
 		}
-		return
+	} else {
+		job.Tries = 0
+		err = rtx.UpdateJob(o.ctx, job)
+		if err != nil {
+			o.logger.Error(err)
+		}
 	}
-	job.Tries = 0
-	err = o.repo.UpdateJob(o.ctx, job)
+	err = rtx.Commit()
 	if err != nil {
 		o.logger.Error(err)
 	}
