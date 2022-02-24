@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/jmoiron/sqlx"
 	"github.com/putalexey/gophermart/loyaltyapi/models"
 )
 
@@ -16,15 +15,7 @@ type BalanceRepository interface {
 }
 
 func (r *Repo) CreateBalance(ctx context.Context, balance *models.Balance) (sql.Result, error) {
-	return r.db.NamedExecContext(
-		ctx,
-		"INSERT INTO balances (user_uuid, current, withdrawn) VALUES (:user_uuid, :current, :withdrawn)",
-		balance,
-	)
-}
-
-func (r *Repo) createBalanceTx(tx *sqlx.Tx, ctx context.Context, balance *models.Balance) (sql.Result, error) {
-	return tx.NamedExecContext(
+	return r.req.NamedExecContext(
 		ctx,
 		"INSERT INTO balances (user_uuid, current, withdrawn) VALUES (:user_uuid, :current, :withdrawn)",
 		balance,
@@ -32,15 +23,7 @@ func (r *Repo) createBalanceTx(tx *sqlx.Tx, ctx context.Context, balance *models
 }
 
 func (r *Repo) SaveBalance(ctx context.Context, balance *models.Balance) (sql.Result, error) {
-	return r.db.NamedExecContext(
-		ctx,
-		"UPDATE balances SET current=:current, withdrawn=:withdrawn WHERE user_uuid=:user_uuid",
-		balance,
-	)
-}
-
-func (r *Repo) saveBalanceTx(tx *sqlx.Tx, ctx context.Context, balance *models.Balance) (sql.Result, error) {
-	return tx.NamedExecContext(
+	return r.req.NamedExecContext(
 		ctx,
 		"UPDATE balances SET current=:current, withdrawn=:withdrawn WHERE user_uuid=:user_uuid",
 		balance,
@@ -49,7 +32,7 @@ func (r *Repo) saveBalanceTx(tx *sqlx.Tx, ctx context.Context, balance *models.B
 
 func (r *Repo) GetUserBalance(ctx context.Context, userUUID string) (*models.Balance, error) {
 	var balance = &models.Balance{}
-	err := r.db.GetContext(ctx, balance, "SELECT user_uuid, current, withdrawn FROM balances WHERE user_uuid = $1", userUUID)
+	err := r.req.GetContext(ctx, balance, "SELECT user_uuid, current, withdrawn FROM balances WHERE user_uuid = $1", userUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -59,9 +42,9 @@ func (r *Repo) GetUserBalance(ctx context.Context, userUUID string) (*models.Bal
 	return balance, nil
 }
 
-func (r *Repo) getUserBalanceTxForUpdate(tx *sqlx.Tx, ctx context.Context, userUUID string) (*models.Balance, error) {
+func (r *Repo) GetUserBalanceForUpdate(ctx context.Context, userUUID string) (*models.Balance, error) {
 	var balance = &models.Balance{}
-	err := tx.GetContext(ctx, balance, "SELECT user_uuid, current, withdrawn FROM balances WHERE user_uuid = $1 FOR UPDATE", userUUID)
+	err := r.req.GetContext(ctx, balance, "SELECT user_uuid, current, withdrawn FROM balances WHERE user_uuid = $1 FOR UPDATE", userUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -72,13 +55,13 @@ func (r *Repo) getUserBalanceTxForUpdate(tx *sqlx.Tx, ctx context.Context, userU
 }
 
 func (r *Repo) BalanceWithdraw(ctx context.Context, withdrawal *models.Withdrawal) (sql.Result, error) {
-	tx, err := r.db.Beginx()
+	rtx, err := r.Begin()
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer rtx.Rollback()
 
-	balance, err := r.getUserBalanceTxForUpdate(tx, ctx, withdrawal.UserUUID)
+	balance, err := rtx.GetUserBalanceForUpdate(ctx, withdrawal.UserUUID)
 	if err != nil {
 		return nil, err
 	}
@@ -88,13 +71,13 @@ func (r *Repo) BalanceWithdraw(ctx context.Context, withdrawal *models.Withdrawa
 
 	balance.Current -= withdrawal.Sum
 	balance.Withdrawn += withdrawal.Sum
-	_, err = r.saveBalanceTx(tx, ctx, balance)
+	_, err = rtx.SaveBalance(ctx, balance)
 	if err != nil {
 		return nil, err
 	}
 
 	query := `INSERT INTO withdrawals ("uuid", "user_uuid", "order", "sum", "processed_at") VALUES (:uuid, :user_uuid, :order, :sum, :processed_at)`
-	result, err := tx.NamedExecContext(
+	result, err := rtx.req.NamedExecContext(
 		ctx,
 		query,
 		withdrawal,
@@ -103,31 +86,45 @@ func (r *Repo) BalanceWithdraw(ctx context.Context, withdrawal *models.Withdrawa
 		return nil, err
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = rtx.Commit(); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
 func (r *Repo) BalanceDeposit(ctx context.Context, deposit *models.Deposit) (sql.Result, error) {
-	tx, err := r.db.Beginx()
+	rtx, err := r.Begin()
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer rtx.Rollback()
 
-	balance, err := r.getUserBalanceTxForUpdate(tx, ctx, deposit.UserUUID)
+	balance, err := rtx.GetUserBalanceForUpdate(ctx, deposit.UserUUID)
 	if err != nil {
 		return nil, err
 	}
 
 	balance.Current += deposit.Sum
-	result, err := r.saveBalanceTx(tx, ctx, balance)
+	result, err := rtx.SaveBalance(ctx, balance)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = rtx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (rtx *RepoTx) BalanceDeposit(ctx context.Context, deposit *models.Deposit) (sql.Result, error) {
+	balance, err := rtx.GetUserBalanceForUpdate(ctx, deposit.UserUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	balance.Current += deposit.Sum
+	result, err := rtx.SaveBalance(ctx, balance)
+	if err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -136,7 +133,7 @@ func (r *Repo) BalanceDeposit(ctx context.Context, deposit *models.Deposit) (sql
 func (r *Repo) GetBalanceWithdrawals(ctx context.Context, user *models.User) ([]models.Withdrawal, error) {
 	withdrawals := []models.Withdrawal{}
 	query := `SELECT "uuid", "user_uuid", "order", "sum", "processed_at" FROM "withdrawals" WHERE "user_uuid" = $1`
-	err := r.db.SelectContext(ctx, &withdrawals, query, user.UUID)
+	err := r.req.SelectContext(ctx, &withdrawals, query, user.UUID)
 	if err != nil {
 		return nil, err
 	}
