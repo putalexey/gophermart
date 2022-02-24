@@ -98,9 +98,13 @@ func (r *Repo) Begin() (*RepoTx, error) {
 	}
 	return rtx, nil
 }
-func (rtx RepoTx) Commit() error {
+func (rtx *RepoTx) Commit() error {
 	return rtx.Tx.Commit()
 }
-func (rtx RepoTx) Rollback() error {
+func (rtx *RepoTx) Rollback() error {
 	return rtx.Tx.Rollback()
+}
+
+func (rtx *RepoTx) Begin() (*RepoTx, error) {
+	return nil, errors.New("transaction already started")
 }
