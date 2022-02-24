@@ -15,6 +15,7 @@ import (
 	"github.com/putalexey/gophermart/loyaltyapi/workers"
 	"go.uber.org/zap"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -129,15 +130,20 @@ func (a *LoyaltyAPI) Run(ctx context.Context) {
 		ErrorLog: zap.NewStdLog(a.Logger.Desugar()),
 	}
 
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
 		if err := a.srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
 			a.Logger.Infof("listen: %s\n", err)
 		}
+		wg.Done()
 	}()
 
+	wg.Add(1)
 	go func() {
 		orderWorker := workers.New(ctx, a.Logger, a.repository, 10*time.Second, a.accrualService)
 		orderWorker.Run()
+		wg.Done()
 	}()
 
 	<-ctx.Done()
@@ -150,4 +156,5 @@ func (a *LoyaltyAPI) Run(ctx context.Context) {
 	if err := a.srv.Shutdown(shutdownCtx); err != nil {
 		a.Logger.Fatalf("Server forced to shutdown: %s", err)
 	}
+	wg.Wait()
 }
